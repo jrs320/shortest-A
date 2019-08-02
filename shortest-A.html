@@ -1,0 +1,877 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>最短路径</title>
+<style type="text/css">
+body {
+    text-align: center;
+}
+
+#main {
+    text-align: center;
+    background-color: #FAF0E6;
+    margin: 0 auto;
+    margin-top: 80px;
+    outline: none;
+}
+
+#bar {
+    position: absolute;
+    left: 50%;
+    top: 30px;
+    *top: 40px;
+    width: 400px;
+    margin-left: -200px;
+    z-index: 10;
+}
+
+#bar ul {
+    background: #808080;
+    list-style: none;
+    margin: 0;
+    padding: 1px;
+    border-radius: 15px;
+    display: inline-block;
+    *display: inline;
+    *zoom: 1;
+}
+
+#bar ul:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+#bar li {
+    float: left;
+    list-style: none;
+    line-height: 30px;
+    padding: 0 10px;
+}
+
+#bar li.on {
+    background: #FAF0E6;
+    font-weight: bold;
+    border-radius: 15px;
+}
+
+#bar li:hover, #bar li a:hover {
+    background: #FAF0E6;
+    border-radius: 15px;
+    color: red;
+}
+
+#bar li a {
+    color: #fff;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+}
+
+#bar li.on a {
+    color: red;
+}
+
+.square {
+    background-color: #808080;
+    float: left;
+    position: relative;
+    border: 1px solid #A9A9A9;
+    border-width: 1px 0 0 1px;
+}
+
+.square_right {
+    border-right-width: 1px;
+}
+
+.square_bottom {
+    border-bottom-width: 1px;
+}
+
+.sq_cross {
+    background-color: #808080;
+}
+
+.sq_block {
+    background-color: #000;
+}
+
+.sq_start {
+    background-color: #fff;
+}
+
+.sq_end {
+    background-color: red;
+}
+
+.sq_path {
+    background-color: #fff;
+}
+
+.square .dot {
+    position: absolute;
+    z-index: 2;
+    border-radius: 50%;
+    background: red;
+    left: 50%;
+    top: 50%;
+}
+
+.hide {
+    display: none;
+}
+
+.show {
+    display: block;
+}
+
+.screen {
+    margin: 0 auto;
+    position: relative;
+}
+
+.btn {
+    background-color: yellow;
+    color: red;
+    width: 80px;
+    height: 30px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 30px;
+    cursor: pointer;
+    margin: 10px auto;
+    border: 1px solid #A9A9A9;
+}
+
+.btn_set {
+    background: green;
+    color: #fff;
+}
+
+#setStart {
+    background: #fff;
+    color: #000;
+}
+
+#setEnd {
+    background: red;
+    color: #fff;
+}
+
+#setBlock {
+    background: #000;
+    color: #fff;
+}
+
+#setCross {
+    background: #808080;
+    color: #000;
+}
+
+.screen_setStart .square:hover {
+    background: #fff;
+}
+
+.screen_setEnd .square:hover {
+    background: red;
+}
+
+.screen_setBlock .square:hover {
+    background: #000;
+}
+
+.screen_setCross .square:hover {
+    background: #808080;
+}
+
+.board,
+.msg {
+    border: 0px #A9A9A9 solid;
+    position: absolute;
+    z-index: 1;
+}
+
+.msg {
+    z-index: 10;
+}
+
+.boardTitle {
+    color: #20B2AA;
+    width: 80px;
+    height: 30px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 30px;
+    margin: 0px auto;
+    margin-bottom: 10px;
+    border-bottom: 1px red solid;
+}
+
+#topInfo {
+    border: 0px;
+    position: absolute;
+    z-index: 1;
+    color: red;
+    font-weight: bold;
+    font-size: 20px;
+    line-height: 80px;
+    top: -80px;
+    left: 50%;
+    width: 200px;
+    height: 80px;
+    margin-left: -100px;
+    letter-spacing: 15px;
+}
+
+#bottomInfo {
+    border: 0px;
+    position: absolute;
+    z-index: 1;
+    bottom: -80px;
+    left: 50%;
+    width: 400px;
+    height: 80px;
+    margin-left: -200px;
+}
+
+#bottomInfo div {
+    margin-top: 20px;
+    line-height: 20px;
+    color: #ccc;
+    font-family: Tahoma, Verdana, Arial, Helvetica, sans-serif;
+    font-size: 14px;
+}
+
+</style>
+<script type="text/javascript">
+var game = (function () {
+
+    var setType = "cross";	// 设置状态
+
+    // 工具类
+    var util = {
+        dom: document,
+        cache: {},
+        $: function (target, e) {
+            e = e || document.body;
+            // id
+            if (/^#/.test(target)) {
+                var id = target.split("#")[1];
+                return util.cache[id] || (util.cache[id] = util.dom.getElementById(id));
+            }
+            // 类
+            else if (/^\./.test(target)) {
+                var className = target.split(".")[1],
+                        all = e.getElementsByTagName("*"),
+                        r = new RegExp(" " + className + " "),
+                        m = [];
+                for (var i = 0; i < all.length; i++) {
+                    var cn = " " + util.trim(all[i].className) + " ";
+                    if (r.test(cn)) {
+                        m.push(all[i]);
+                    }
+                }
+                return m;
+            }
+            // 标签名
+            else {
+                return e.getElementsByTagName(target);
+            }
+        },
+        trim: function (s) {
+            return (s || "").replace(/^\s+|\s+$/g, "");
+        },
+        // 冒泡查找 (target:可以是 标签类型名称，id，类名 三种)
+        bubblingForE: function (e, target) {
+            var isEq = arguments.callee.isEq || (arguments.callee.isEq = function (e, target) {
+                if (/^#/.test(target)) {
+                    return e.id == target.split("#")[1];
+                }
+                else if (/^\./.test(target)) {
+                    return new RegExp(".*" + target.split(".")[1] + ".*").test(e.className);
+                }
+                else {
+                    return e.nodeName.toLowerCase() == target;
+                }
+            });
+            var pe = e;
+            while (e && !isEq(e, target)) {
+                e = e.parentNode;
+                if (e == pe) break;
+            }
+            if (e && isEq(e, target)) {
+                return e;
+            }
+            return null;
+        },
+        addClass: function (e, classes) {
+            var cn = " " + this.trim(e.className) + " ",
+                    cs = classes.split(" ");
+            for (var c in cs) {
+                if (!(new RegExp(" " + cs[c] + " ").test(cn))) {
+                    cn = cn + cs[c] + " ";
+                }
+            }
+            e.className = this.trim(cn);
+            return e;
+        },
+        removeClass: function (e, classes) {
+            var cn = " " + this.trim(e.className) + " ";
+            if (classes instanceof RegExp) {
+                cn = cn.replace(classes, "");
+            }
+            else {
+                var cs = classes.split(" ");
+                for (var c in cs) {
+                    cn = cn.replace(new RegExp(" " + cs[c] + " ", "g"), " ");
+                }
+            }
+            e.className = this.trim(cn);
+            return e;
+        },
+        addHandler: function (e, type, handler) {
+            if (e.addEventListener) {
+                e.addEventListener(type, handler, false);
+            }
+            else if (e.attachEvent) {
+                e.attachEvent("on" + type, handler);
+            }
+            else {
+                e["on" + type] = handler;
+            }
+        },
+        // [min,max)
+        random: function (min, max) {
+            return Math.floor(min + Math.random() * (max - min));
+        }
+    }
+    var $ = util.$;
+
+    // 屏幕
+    var Screen = function (r, c, l, id, renderTo) {
+        this.r = r;		// r:屏幕行数
+        this.c = c;		// c:屏幕列数
+        this.l = l;		// l:小方块边长
+        this.id = id;
+        this.renderTo = renderTo;
+        this.sqs = {};
+    }
+
+    Screen.prototype = {
+        constructor: Screen,
+        getW: function () {
+            return this.c * (this.l + 1) + 1;
+        },
+        getH: function () {
+            return this.r * (this.l + 1) + 1;
+        },
+        render: function () {
+            var innerHTML = [],
+                    l = this.l,
+                    r = this.r,
+                    c = this.c,
+                    half_l = Math.floor(l / 2);
+
+            var dot_style = "style='height:" + (l - 6) + "px;width:" + (l - 6) + "px;margin-left:" + (-half_l + 3) + "px;margin-top:" + (-half_l + 3) + "px;'";
+
+            for (var i = 0; i < r * c; i++) {
+                var x = i % c,
+                        y = Math.floor(i / c),
+                        ar = [],
+                        squareClass = 'square';
+
+                if (r - 1 == y) {
+                    squareClass += " square_bottom";
+                }
+                if (c - 1 == x) {
+                    squareClass += " square_right";
+                }
+
+                ar.push("<div class='" + squareClass + "' id='" + x + "_" + y + "_" + this.id + "'");
+                ar.push(" style='width:" + l + "px;height:" + l + "px;'>");
+                ar.push("<span class='dot hide' " + dot_style + "></span>");
+                ar.push("</div>");
+                innerHTML.push(ar.join(""));
+
+                // 初始实例小方格
+                !this.sqs[x] && (this.sqs[x] = {});
+                this.sqs[x][y] = new Sq(x, y, this.id);
+            }
+            return innerHTML.join("");
+        },
+        show: function (r, c, l, id) {
+            this.r = r || this.r;
+            this.c = c || this.c;
+            this.l = l || this.l;
+            this.id = id || this.id;
+            this.e = util.dom.createElement("div");
+            this.e.id = this.id;
+            this.e.style.width = this.getW() + "px";
+            this.e.style.height = this.getH() + "px";
+            this.e.innerHTML = this.render();
+            this.e.className = "screen";
+            $("#" + this.renderTo).appendChild(this.e);
+            this.bindEvent();
+        },
+        reset: function () {
+            if (this.sqs) {
+                for (var x in this.sqs) {
+                    for (var y in this.sqs[x]) {
+                        this.sqs[x][y].reset();
+                    }
+                }
+            }
+            return this;
+        },
+        getSqs: function (x, y) {
+            return this.sqs[x] ? this.sqs[x][y] : null;
+        },
+        randomShareSq: function () {
+            var sqIndex = [],
+                    total = this.r * this.c,
+                    index, x, y,
+                    blockSum = 80;
+            // 墙壁
+            for (var i = 0; i < total; i++) {
+                sqIndex.push(i);
+            }
+
+            for (var i = 0; i < blockSum + 2; i++) {
+                index = sqIndex.splice(util.random(0, sqIndex.length), 1);
+                x = index % this.c;
+                y = Math.floor(index / this.c);
+                if (0 == i) {
+                    this.sqs[x][y].fill("start");
+                }
+                else if (1 == i) {
+                    this.sqs[x][y].fill("end");
+                }
+                else {
+                    this.sqs[x][y].fill("block");
+                }
+            }
+
+        },
+        // 动画演示路径
+        showRoute: function (m) {
+            var routes = A_star.getRouteList();
+            if (m) {
+                var i = 0;
+                (function () {
+                    if (i < routes.length) {
+                        routes[i++].fill("path");
+                        var t = setTimeout(arguments.callee, 500);
+                        threadUtil.add(t);
+                    }
+                })()
+            }
+            else {
+                var end = A_star.getEndNode();
+                var i = 0;
+                (function (end) {
+                    if (end = end.parent) {
+                        if (end.parent) {
+                            arguments.callee.call(null, end);
+                            var t = setTimeout(function () {
+                                end.fill("path");
+                            }, 500 * i++);
+                            threadUtil.add(t);
+                        }
+                    }
+                })(end)
+            }
+        },
+        // 点击事件绑定
+        bindEvent: function () {
+            var self = this;
+            util.addHandler($("#" + this.id), "click", function (event) {
+                event = event || window.event;
+                var e = event.srcElement || event.target;
+                e = util.bubblingForE(e, ".square");
+                if (e) {
+                    threadUtil.clear();
+                    A_star.reset();
+                    var xy = e.id.split("_");
+                    self.sqs[xy[0]][xy[1]].fill(setType);
+                }
+            });
+        }
+    }
+    // 初始化屏幕
+    var screen = new Screen(20, 10, 22, "mS", "main");
+
+    // 小方块
+    var Sq = function (x, y, screenId) {
+        this.x = x;
+        this.y = y;
+        this.screenId = screenId;
+    }
+
+    Sq.prototype = {
+        constructor: Sq,
+        getE: function () {
+            return this.e || (this.e = $("#" + this.x + "_" + this.y + "_" + this.screenId));
+        },
+        fill: function (type) {
+            var e = this.getE();
+            if (e) {
+                var dot = $("span", e)[0];
+                var className = "sq_" + type;
+                switch (type) {
+                    case "start" :
+                    case "end" :
+
+                        var upType = type.charAt(0).toUpperCase() + type.substr(1);
+                        A_star["set" + upType + "Node"](this);
+
+                        var m = $("." + className, $("#mS"));
+                        for (var i = 0; i < m.length; i++) {
+                            util.removeClass(m[i], className);
+                        }
+
+                    case "cross" :
+                    case "block" :
+                        if ("start" == this.getClassType()) {
+                            A_star.getStartNode().reset(true);
+                            A_star.setStartNode(null);
+                        }
+                        if ("end" == this.getClassType()) {
+                            A_star.getEndNode().reset(true);
+                            A_star.setEndNode(null);
+                        }
+                        util.removeClass(dot, "show");
+                        util.addClass(dot, "hide");
+                        util.removeClass(e, /\b(sq_)\w*\b/g);
+                        util.addClass(e, className);
+                        break;
+                    case "path"  :
+                        util.removeClass(dot, "hide");
+                        util.addClass(dot, "show");
+                        util.removeClass(e, /\b(sq_)\w*\b/g);
+                        util.addClass(e, className);
+                        break;
+                }
+
+                this.status = null;
+                this.parent = null;
+            }
+        },
+        reset: function (notFill) {
+            !notFill && this.fill("cross");
+            this.status = null;
+            this.parent = null;
+        },
+        getClassType: function () {
+            var classType = "cross";
+            var e = this.getE();
+            if (e) {
+                var m = (e.className || "").match(/sq_(\w*)/);
+                m && (classType = m[1]);
+            }
+            return classType;
+        },
+        setStatus: function (status) {
+            this.status = status;
+            return this;
+        },
+        getStatus: function () {
+            if (this.status) return this.status;
+
+            this.status = SS.unreachable;
+
+            switch (this.getClassType()) {
+                case "cross" :
+                    this.status = SS.reachable;
+                    break;
+                case "block" :
+                    this.status = SS.unreachable;
+                    break;
+                case "start" :
+                    this.status = SS.start;
+                    break;
+                case "end" :
+                    this.status = SS.end;
+                    break;
+            }
+
+            return this.status;
+        },
+        // 方块紧邻的4个方块，第一个索引从上边开始，顺时针数4个
+        0: function () {
+            return screen.getSqs(this.x, this.y - 1);
+        },
+        1: function () {
+            return screen.getSqs(this.x + 1, this.y);
+        },
+        2: function () {
+            return screen.getSqs(this.x, this.y + 1);
+        },
+        3: function () {
+            return screen.getSqs(this.x - 1, this.y);
+        }
+    }
+
+    /*
+     start 起点
+     end 终点
+     reachable 可到达的
+     unreachable 不可到达的
+     open 待探寻的
+     close 已经走过的
+     */
+    var SS = {
+        start: 0,
+        end: 1,
+        reachable: 2,
+        unreachable: 3,
+        open: 4,
+        close: 5
+    }
+
+    // A*算法
+    var A_star = (function () {
+        var openList = [],
+                routeList = [],
+                startNode = null,
+                endNode = null;
+
+        var pushOpenNode = function (node) {
+            openList.push(node);
+            openList.sort(function (a, b) {
+                return f(b) - f(a);
+            });
+        }
+
+        var pushRouteNode = function (node) {
+            routeList.push(node);
+        }
+
+        var g = function(node){
+            var v = 0;
+            while(node = node.parent)
+            {
+                v++;
+            }
+            return v;
+        }
+
+        var h = function(node){
+            return Math.abs(node.x - endNode.x) + Math.abs(node.y - endNode.y);
+        }
+
+        var f = function(node){
+            return g(node) + h(node);
+        }
+
+        var isGetEnd = function (node) {
+            return node && 1 == h(node);
+        };
+
+        return {
+            setStartNode: function (node) {
+                startNode && startNode.reset(true);
+                startNode = node;
+                return this;
+            },
+            getStartNode: function () {
+                return startNode;
+            },
+            setEndNode: function (node) {
+                endNode && endNode.reset(true);
+                endNode = node;
+                return this;
+            },
+            getEndNode: function () {
+                return endNode;
+            },
+            reset: function () {
+                for (var i in routeList) {
+                    routeList[i].reset();
+                }
+                for (var i in openList) {
+                    openList[i].reset();
+                }
+                openList = [];
+                routeList = [];
+                endNode && (endNode.parent = null);
+                return this;
+            },
+            getRouteList: function () {
+                return routeList;
+            },
+            calculate: function (m) {
+                if (!startNode || !endNode) return;
+
+                startNode.setStatus(SS.open);
+                pushOpenNode(startNode);
+
+                while (openList.length > 0) {
+
+                    var detecArr = [openList.pop()],
+                            openNode,
+                            isAble,
+                            isEnd = false;
+
+                    for (var i = openList.length - 1; i >= 0; i--) {
+                        if (f(openList[i]) == f(detecArr[0])) {
+                            detecArr.push(openList[i]);
+                        }
+                    }
+
+                    for (var i in detecArr) {
+                        openNode = detecArr[i];
+
+                        if (isGetEnd(openNode)) {
+                            isEnd = true;
+                            openNode.setStatus(SS.close);
+                            startNode != openNode && pushRouteNode(openNode);
+                            break;
+                        }
+
+                        isAble = false;
+                        for (var i = 0; i < 4; i++) {
+                            var sn = openNode[i]();
+                            if (sn && SS.reachable == sn.getStatus()) {
+                                isAble = true;
+                                sn.setStatus(SS.open);
+                                sn.parent = openNode;
+                                pushOpenNode(sn);
+                            }
+                        }
+                        if (isAble) {
+                            openNode.setStatus(SS.close);
+                            startNode != openNode && pushRouteNode(openNode);
+                        }
+                    }
+
+                    if (isEnd) {
+                        endNode.parent = openNode;
+                        screen.showRoute(m);
+                        break;
+                    }
+                }
+            }
+        }
+    })();
+
+    // 删除定时器
+    var threadUtil = (function () {
+        var thread = [];
+        return {
+            add: function (t) {
+                thread.push(t);
+            },
+            clear: function () {
+                var t = null;
+                while (t = thread.pop()) {
+                    clearTimeout(t);
+                }
+            }
+        }
+    })()
+
+    // 开始按钮
+    var button = (function () {
+        var setFn = function () {
+            var m = this.id.match(/set(\w+)/);
+            setType = m[1].toLowerCase();
+
+            threadUtil.clear();
+            A_star.reset();
+
+            var $s = $("#mS");
+            util.removeClass($s, /\bscreen_(?:\w+)\b/);
+            util.addClass($s, "screen_" + this.id);
+        }
+        var initEvent = function () {
+
+            $("#setStart").onclick = setFn;
+            $("#setEnd").onclick = setFn;
+            $("#setBlock").onclick = setFn;
+            $("#setCross").onclick = setFn;
+
+            $("#clearScreen").onclick = function () {
+                threadUtil.clear();
+                A_star.reset();
+                screen.reset();
+            }
+            $("#randomAll").onclick = function () {
+                threadUtil.clear();
+                A_star.reset();
+                screen.reset().randomShareSq();
+            }
+            $("#findPath").onclick = function () {
+                threadUtil.clear();
+                A_star.reset().calculate();
+            }
+        }
+        return {
+            show: function () {
+                var e = util.dom.createElement("div");
+                e.className = "board";
+                e.style.bottom = "-10px";
+                e.style.right = "-160px";
+                e.style.width = "140px";
+                var innerHTML = ""
+                        + "<div class='btn' id='setStart'>设置起点</div>"
+                        + "<div class='btn' id='setEnd'>设置终点</div>"
+                        + "<div class='btn' id='setBlock'>设置墙壁</div>"
+                        + "<div class='btn' id='setCross'>设置通路</div>"
+                        + "<div class='btn btn_set' id='clearScreen'>清除屏幕</div>"
+                        + "<div class='btn btn_set' id='randomAll'>随机布置</div>"
+                        + "<div class='btn' id='findPath'>开始寻路</div>";
+                e.innerHTML = innerHTML;
+                screen.e.appendChild(e);
+                initEvent();
+            }
+        }
+    })()
+
+    // 顶部底部
+    var topBottomInfo = (function () {
+        return {
+            show: function () {
+                // 顶部
+                var top = util.dom.createElement("div");
+                top.id = "topInfo";
+                top.innerHTML = "shortest";
+
+                // 底部
+                var bottom = util.dom.createElement("div");
+                bottom.id = "bottomInfo";
+                bottom.innerHTML = "<div>最短路径(A*算法)</div>";
+
+                screen.e.appendChild(top);
+                screen.e.appendChild(bottom);
+            }
+        }
+    })()
+
+    return {
+        init: function (r, c, l) {
+            screen.show(r, c, l);
+            button.show();
+            topBottomInfo.show();
+        }
+    };
+})()
+
+window.onload = function (e) {
+    game.init(18, 25, 24);
+}
+</script>
+<head>
+<body>
+<div id="main"></div>
+<div id="bar">
+    <ul>
+        <li class=""><a href="tetris.html" target="_blank">俄罗斯方块</a></li>
+        <li class="on"><a href="shortest-A.html" target="_blank">最短路径</a></li>
+        <li class=""><a href="gobang.html" target="_blank">五子棋</a></li>
+    </ul>
+</div>
+</body>
+</html>
